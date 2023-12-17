@@ -1,0 +1,36 @@
+- type: ProjectAlpha
+  properties:
+    version: 1.0
+    primaryColor: red
+    secondaryColor: blue
+    users: ['Alice', 'Bob', 'Charlie']
+    isActive: true
+    searchFields: 
+      - name: 'searchUsers'
+        value: ''
+      - name: 'searchColors'
+        value: ''
+- type: ProjectBeta
+  properties:
+    version: 2.0
+    primaryColor: green
+    secondaryColor: yellow
+    users: ['David', 'Eve', 'Frank']
+    isActive: false
+    searchFields: 
+      - name: 'searchUsers'
+        value: ''
+- type: ProjectGamma
+  properties:
+    version: 3.0
+    primaryColor: purple
+    secondaryColor: orange
+    users: ['Grace', 'Heidi', 'Ivan']
+    isActive: true
+    searchFields: 
+      - name: 'searchUsers'
+        value: ''
+      - name: 'searchColors'
+        value: ''
+      - name: 'searchVersion'
+        value: ''

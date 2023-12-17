@@ -1,0 +1,93 @@
+{
+  "name": "codearchitect",
+  "displayName": "CodeArchitect",
+  "description": "CodeArchitect is a versatile Visual Studio Code extension designed to empower developers in creating intricate software architectures effortlessly. With its intuitive interface and robust features, this extension enables users to craft diverse architectural designs, particularly UML diagrams, with ease. What sets CodeArchitect apart is its unparalleled flexibility, offering customizable elements and configurations tailored to individual preferences. Whether it's designing intricate system structures or mapping out class relationships, CodeArchitect adapts to the user's needs, fostering seamless and personalized architecture creation within the familiar VS Code environment.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codearchitect",
+          "title": "CodeArchitect",
+          "icon": "media/codearchitect-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codearchitect": [
+        {
+          "id": "codearchitect.view.project",
+          "name": "Project Folder Tree"
+        },
+        {
+          "id": "codearchitect.view.properties",
+          "name": "Properties"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codearchitect.project.addFolder",
+        "title": "Create Folder"
+      },
+      {
+        "command": "codearchitect.project.addRootFolder",
+        "title": "Create Root Folder"
+      },
+      {
+        "command": "extension.openWebview",
+        "title": "Open Webview"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codearchitect.project.addRootFolder",
+          "when": "view == codearchitect.view.project"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codearchitect.project.addFolder",
+          "when": "viewItem =~ /^Folder/"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.54.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
