@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 export class Folder extends vscode.TreeItem {
     children: Folder[] = [];
@@ -6,11 +7,18 @@ export class Folder extends vscode.TreeItem {
 
     constructor(
         public readonly label: string,
+        public readonly description: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+        public readonly light_ico: string,
+        public readonly dark_ico: string,
         public readonly command?: vscode.Command
     ) {
         super(label, collapsibleState);
-        this.tooltip = label;
+        this.tooltip = description;
+        this.iconPath = {
+            light: path.join(__filename, light_ico),
+            dark: path.join(__filename, dark_ico)
+        };
     }
 
     contextValue = 'Folder';

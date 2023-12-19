@@ -30,11 +30,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
-const fs = __importStar(__webpack_require__(3));
-const yaml = __importStar(__webpack_require__(4));
-const path = __importStar(__webpack_require__(29));
-const vscode = __importStar(__webpack_require__(1));
-const projectExplorer_1 = __webpack_require__(2);
+const fs = __importStar(__webpack_require__(1));
+const yaml = __importStar(__webpack_require__(2));
+const path = __importStar(__webpack_require__(27));
+const vscode = __importStar(__webpack_require__(28));
+const projectExplorer_1 = __webpack_require__(29);
 // Create a webview panel for the properties
 let propertiesPanel;
 function activate(context) {
@@ -43,42 +43,48 @@ function activate(context) {
     const yamlFilePath = path.join(context.extensionPath, 'config.yaml');
     const yamlStr = fs.readFileSync(yamlFilePath, 'utf8');
     const configs = yaml.load(yamlStr);
-    const types = configs.map((config) => config.type);
+    const names = configs.map((config) => config.name);
     let lastClickedItem;
     // Update the calls to updateWebviewPanel
     treeView.onDidChangeSelection(e => {
         if (e.selection.length > 0) {
             const folder = e.selection[0];
             lastClickedItem = folder;
-            updateWebviewPanel(lastClickedItem, configs, types, context);
+            updateWebviewPanel(lastClickedItem, configs, names, context);
         }
     });
-    treeView.onDidCollapseElement(() => updateWebviewPanel(lastClickedItem, configs, types, context));
-    treeView.onDidExpandElement(() => updateWebviewPanel(lastClickedItem, configs, types, context));
-    const disposable = vscode.commands.registerCommand('codearchitect.project.addFolder', (folder) => {
-        vscode.window.showInputBox({ prompt: 'Enter folder name' }).then(value => {
-            if (value) {
-                vscode.window.showQuickPick(types, { placeHolder: 'Select folder type' }).then(type => {
-                    if (type) {
-                        const newFolder = new projectExplorer_1.Folder(value, vscode.TreeItemCollapsibleState.Collapsed);
-                        newFolder.contextValue = "Folder." + type;
-                        folderProjectTree.addItem(newFolder, folder);
-                        treeView.reveal(newFolder, { select: false, focus: false, expand: true });
-                    }
-                });
+    treeView.onDidCollapseElement(() => updateWebviewPanel(lastClickedItem, configs, names, context));
+    treeView.onDidExpandElement(() => updateWebviewPanel(lastClickedItem, configs, names, context));
+    const disposable = vscode.commands.registerCommand('codearchitect.project.addFolder', async (folder) => {
+        const currentFolder = folder.contextValue.split('.').pop();
+        const currentConfig = configs.find(config => config.name === currentFolder);
+        const availableChildren = (currentConfig && currentConfig.children) || [];
+        const filteredNames = names.filter(name => availableChildren.includes(name));
+        const selectedName = await vscode.window.showQuickPick(filteredNames, { placeHolder: 'Select folder type' });
+        if (selectedName) {
+            const config = configs.find(config => config.name === selectedName);
+            if (config) {
+                const { name, description, light_ico, dark_ico } = config;
+                const value = await vscode.window.showInputBox({ prompt: 'Enter folder name' });
+                if (value) {
+                    const newFolder = new projectExplorer_1.Folder(value, description, vscode.TreeItemCollapsibleState.Collapsed, light_ico, dark_ico);
+                    newFolder.contextValue = "Folder." + name;
+                    folderProjectTree.addItem(newFolder, folder);
+                    treeView.reveal(newFolder, { select: false, focus: false, expand: true });
+                }
             }
-        });
+        }
     });
     const disposableRoot = vscode.commands.registerCommand('codearchitect.project.addRootFolder', () => {
-        vscode.window.showInputBox({ prompt: 'Enter folder name' }).then(value => {
+        const name = configs.find(config => config.name === 'Project').name;
+        const description = configs.find(config => config.name === 'Project').description;
+        const light_ico = configs.find(config => config.name === 'Project').light_ico;
+        const dark_ico = configs.find(config => config.name === 'Project').dark_ico;
+        vscode.window.showInputBox({ prompt: 'Set Project Name' }).then(value => {
             if (value) {
-                vscode.window.showQuickPick(types, { placeHolder: 'Select folder type' }).then(type => {
-                    if (type) {
-                        const newFolder = new projectExplorer_1.Folder(value, vscode.TreeItemCollapsibleState.Collapsed);
-                        newFolder.contextValue = "Folder." + type;
-                        folderProjectTree.addItem(newFolder);
-                    }
-                });
+                const newFolder = new projectExplorer_1.Folder(value, description, vscode.TreeItemCollapsibleState.Collapsed, light_ico, dark_ico);
+                newFolder.contextValue = "Folder." + name;
+                folderProjectTree.addItem(newFolder);
             }
         });
     });
@@ -87,27 +93,27 @@ function activate(context) {
 exports.activate = activate;
 function updateWebviewPanel(folder, configs, types, context) {
     if (folder) {
-        const type = folder.contextValue.split('.').pop();
-        const config = configs.find(config => config.type === type);
+        const name = folder.contextValue.split('.').pop();
+        const config = configs.find(config => config.name === name);
         if (config && 'properties' in config) {
             if (!propertiesPanel) {
-                propertiesPanel = vscode.window.createWebviewPanel('properties', 'Properties', vscode.ViewColumn.Two, {});
+                propertiesPanel = vscode.window.createWebviewPanel('properties', 'Properties', vscode.ViewColumn.Two, {
+                    enableScripts: true
+                });
                 propertiesPanel.onDidDispose(() => {
                     propertiesPanel = undefined;
                 });
+                // Add the message handling for the search command inside the newly created panel
+                // Update the message handling within the extension
                 propertiesPanel.webview.onDidReceiveMessage(message => {
-                    switch (message.command) {
-                        case 'navigate':
-                            vscode.window.showQuickPick(types, { placeHolder: 'Select a type' }).then(type => {
-                                if (type) {
-                                    propertiesPanel.webview.postMessage({
-                                        command: 'update',
-                                        key: message.key,
-                                        value: type
-                                    });
-                                }
-                            });
-                            return;
+                    console.log("Received message: " + message.command);
+                    if (message.command === 'search') {
+                        // Handle the 'search' command from the webview
+                        vscode.window.showQuickPick(['Item 1', 'Item 2', 'Item 3']).then(selection => {
+                            if (selection) {
+                                vscode.window.showInformationMessage(`Selected: ${selection}`);
+                            }
+                        });
                     }
                 }, undefined, context.subscriptions);
             }
@@ -124,44 +130,50 @@ function updateWebviewPanel(folder, configs, types, context) {
 function getWebviewContent(properties) {
     let content = '<html><body>';
     for (const key in properties) {
-        if (key === 'searchFields') {
-            for (const searchField of properties[key]) {
-                content += `<label for="${searchField.name}">${searchField.name}</label><br>`;
-                content += `<input type="text" id="${searchField.name}" name="${searchField.name}" value="${searchField.value}">`;
-                content += `<button onclick="navigate('${searchField.name}')">Navigate</button><br>`;
-            }
-        }
-        else {
-            content += `<label for="${key}">${key}</label><br>`;
-            if (Array.isArray(properties[key])) {
-                content += `<select id="${key}" name="${key}">`;
-                for (const option of properties[key]) {
-                    content += `<option value="${option}">${option}</option>`;
+        //check if one of the fields of properties[key] is an object
+        if (typeof properties[key] === 'object') {
+            //check if field type is in properties[key]
+            if ('type' in properties[key]) {
+                //check if field type is a select
+                if (properties[key].type === 'input') {
+                    content += `<label for="${key}">${key}</label><br>`;
+                    content += `<input type="text" id="${key}" name="${key}" value="${properties[key].value}"><br>`;
                 }
-                content += `</select><br>`;
-            }
-            else if (typeof properties[key] === 'boolean') {
-                content += `<input type="checkbox" id="${key}" name="${key}" ${properties[key] ? 'checked' : ''}><br>`;
-            }
-            else {
-                content += `<input type="text" id="${key}" name="${key}" value="${properties[key]}"><br>`;
+                else if (properties[key].type === 'dropdown') {
+                    content += `<label for="${key}">${key}</label><br>`;
+                    content += `<select id="${key}" name="${key}">`;
+                    for (const option of properties[key].value) {
+                        content += `<option value="${option}">${option}</option>`;
+                    }
+                    content += `</select><br>`;
+                }
+                else if (properties[key].type === 'checkbox') {
+                    content += `<label for="${key}">${key}</label><br>`;
+                    content += `<input type="checkbox" id="${key}" name="${key}" ${properties[key].value ? 'checked' : ''}><br>`;
+                }
+                else if (properties[key].type === 'nav') {
+                    content += `<label for="${key}">${key}</label><br>`;
+                    //Create a input field that cannot be edited by the user and a search icon on the right
+                    content += `<input type="text" id="${key}" name="${key}" value="${properties[key].value}" readonly>`;
+                    content += `<button type="button" id="searchButton_${key}">Search</button><br>`;
+                }
+                else {
+                    content += `<label for="${key}">${key}</label><br>`;
+                }
             }
         }
     }
+    // After the for loop inside the getWebviewContent function
     content += `<script>
-    console.log('script executed'); // Add this line
-    const vscode = acquireVsCodeApi();
-
-    function navigate(key) {
-        console.log('navigate function called with key:', key);
-        // Send a message to the extension
-        vscode.postMessage({
-            command: 'navigate',
-            key: key
-        });
-        console.log('message posted to extension');
-    }
-</script>`;
+  const vscode = acquireVsCodeApi();
+  const buttons = document.querySelectorAll('[id^="searchButton_"]');
+  buttons.forEach(button => {
+    button.addEventListener('click', event => {
+        const buttonId = event.target.id.split('_').pop();
+        vscode.postMessage({ command: 'search', key: buttonId });
+    });
+  });
+  </script>`;
     content += '</body></html>';
     return content;
 }
@@ -173,105 +185,17 @@ exports.deactivate = deactivate;
 /* 1 */
 /***/ ((module) => {
 
-module.exports = require("vscode");
-
-/***/ }),
-/* 2 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FolderProjectTreeProvider = exports.Folder = void 0;
-const vscode = __importStar(__webpack_require__(1));
-class Folder extends vscode.TreeItem {
-    label;
-    collapsibleState;
-    command;
-    children = [];
-    parent = null;
-    constructor(label, collapsibleState, command) {
-        super(label, collapsibleState);
-        this.label = label;
-        this.collapsibleState = collapsibleState;
-        this.command = command;
-        this.tooltip = label;
-    }
-    contextValue = 'Folder';
-}
-exports.Folder = Folder;
-class FolderProjectTreeProvider {
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    items = [];
-    refresh() {
-        this._onDidChangeTreeData.fire();
-    }
-    getTreeItem(element) {
-        return element;
-    }
-    getChildren(element) {
-        if (element) {
-            return Promise.resolve(element.children);
-        }
-        else {
-            return Promise.resolve(this.items);
-        }
-    }
-    getParent(element) {
-        return element.parent;
-    }
-    addItem(item, parent) {
-        if (parent) {
-            item.parent = parent;
-            parent.children.push(item);
-        }
-        else {
-            this.items.push(item);
-        }
-        this.refresh();
-    }
-}
-exports.FolderProjectTreeProvider = FolderProjectTreeProvider;
-
-
-/***/ }),
-/* 3 */
-/***/ ((module) => {
-
 module.exports = require("fs");
 
 /***/ }),
-/* 4 */
+/* 2 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
 
-var loader = __webpack_require__(5);
-var dumper = __webpack_require__(28);
+var loader = __webpack_require__(3);
+var dumper = __webpack_require__(26);
 
 
 function renamed(from, to) {
@@ -282,32 +206,32 @@ function renamed(from, to) {
 }
 
 
-module.exports.Type = __webpack_require__(14);
-module.exports.Schema = __webpack_require__(13);
-module.exports.FAILSAFE_SCHEMA = __webpack_require__(12);
-module.exports.JSON_SCHEMA = __webpack_require__(11);
-module.exports.CORE_SCHEMA = __webpack_require__(10);
-module.exports.DEFAULT_SCHEMA = __webpack_require__(9);
+module.exports.Type = __webpack_require__(12);
+module.exports.Schema = __webpack_require__(11);
+module.exports.FAILSAFE_SCHEMA = __webpack_require__(10);
+module.exports.JSON_SCHEMA = __webpack_require__(9);
+module.exports.CORE_SCHEMA = __webpack_require__(8);
+module.exports.DEFAULT_SCHEMA = __webpack_require__(7);
 module.exports.load                = loader.load;
 module.exports.loadAll             = loader.loadAll;
 module.exports.dump                = dumper.dump;
-module.exports.YAMLException = __webpack_require__(7);
+module.exports.YAMLException = __webpack_require__(5);
 
 // Re-export all types in case user wants to create custom schema
 module.exports.types = {
-  binary:    __webpack_require__(24),
-  float:     __webpack_require__(21),
-  map:       __webpack_require__(17),
-  null:      __webpack_require__(18),
-  pairs:     __webpack_require__(26),
-  set:       __webpack_require__(27),
-  timestamp: __webpack_require__(22),
-  bool:      __webpack_require__(19),
-  int:       __webpack_require__(20),
-  merge:     __webpack_require__(23),
-  omap:      __webpack_require__(25),
-  seq:       __webpack_require__(16),
-  str:       __webpack_require__(15)
+  binary:    __webpack_require__(22),
+  float:     __webpack_require__(19),
+  map:       __webpack_require__(15),
+  null:      __webpack_require__(16),
+  pairs:     __webpack_require__(24),
+  set:       __webpack_require__(25),
+  timestamp: __webpack_require__(20),
+  bool:      __webpack_require__(17),
+  int:       __webpack_require__(18),
+  merge:     __webpack_require__(21),
+  omap:      __webpack_require__(23),
+  seq:       __webpack_require__(14),
+  str:       __webpack_require__(13)
 };
 
 // Removed functions from JS-YAML 3.0.x
@@ -317,17 +241,17 @@ module.exports.safeDump            = renamed('safeDump', 'dump');
 
 
 /***/ }),
-/* 5 */
+/* 3 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
 /*eslint-disable max-len,no-use-before-define*/
 
-var common              = __webpack_require__(6);
-var YAMLException       = __webpack_require__(7);
-var makeSnippet         = __webpack_require__(8);
-var DEFAULT_SCHEMA      = __webpack_require__(9);
+var common              = __webpack_require__(4);
+var YAMLException       = __webpack_require__(5);
+var makeSnippet         = __webpack_require__(6);
+var DEFAULT_SCHEMA      = __webpack_require__(7);
 
 
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -2050,7 +1974,7 @@ module.exports.load    = load;
 
 
 /***/ }),
-/* 6 */
+/* 4 */
 /***/ ((module) => {
 
 
@@ -2115,7 +2039,7 @@ module.exports.extend         = extend;
 
 
 /***/ }),
-/* 7 */
+/* 5 */
 /***/ ((module) => {
 
 // YAML error class. http://stackoverflow.com/questions/8458984
@@ -2176,13 +2100,13 @@ module.exports = YAMLException;
 
 
 /***/ }),
-/* 8 */
+/* 6 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
 
-var common = __webpack_require__(6);
+var common = __webpack_require__(4);
 
 
 // get snippet for a single line, respecting maxLength
@@ -2283,7 +2207,7 @@ module.exports = makeSnippet;
 
 
 /***/ }),
-/* 9 */
+/* 7 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // JS-YAML's default schema for `safeLoad` function.
@@ -2296,22 +2220,22 @@ module.exports = makeSnippet;
 
 
 
-module.exports = (__webpack_require__(10).extend)({
+module.exports = (__webpack_require__(8).extend)({
   implicit: [
-    __webpack_require__(22),
-    __webpack_require__(23)
+    __webpack_require__(20),
+    __webpack_require__(21)
   ],
   explicit: [
+    __webpack_require__(22),
+    __webpack_require__(23),
     __webpack_require__(24),
-    __webpack_require__(25),
-    __webpack_require__(26),
-    __webpack_require__(27)
+    __webpack_require__(25)
   ]
 });
 
 
 /***/ }),
-/* 10 */
+/* 8 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // Standard YAML's Core schema.
@@ -2324,11 +2248,11 @@ module.exports = (__webpack_require__(10).extend)({
 
 
 
-module.exports = __webpack_require__(11);
+module.exports = __webpack_require__(9);
 
 
 /***/ }),
-/* 11 */
+/* 9 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // Standard YAML's JSON schema.
@@ -2342,18 +2266,18 @@ module.exports = __webpack_require__(11);
 
 
 
-module.exports = (__webpack_require__(12).extend)({
+module.exports = (__webpack_require__(10).extend)({
   implicit: [
+    __webpack_require__(16),
+    __webpack_require__(17),
     __webpack_require__(18),
-    __webpack_require__(19),
-    __webpack_require__(20),
-    __webpack_require__(21)
+    __webpack_require__(19)
   ]
 });
 
 
 /***/ }),
-/* 12 */
+/* 10 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // Standard YAML's Failsafe schema.
@@ -2363,28 +2287,28 @@ module.exports = (__webpack_require__(12).extend)({
 
 
 
-var Schema = __webpack_require__(13);
+var Schema = __webpack_require__(11);
 
 
 module.exports = new Schema({
   explicit: [
-    __webpack_require__(15),
-    __webpack_require__(16),
-    __webpack_require__(17)
+    __webpack_require__(13),
+    __webpack_require__(14),
+    __webpack_require__(15)
   ]
 });
 
 
 /***/ }),
-/* 13 */
+/* 11 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
 /*eslint-disable max-len*/
 
-var YAMLException = __webpack_require__(7);
-var Type          = __webpack_require__(14);
+var YAMLException = __webpack_require__(5);
+var Type          = __webpack_require__(12);
 
 
 function compileList(schema, name) {
@@ -2503,12 +2427,12 @@ module.exports = Schema;
 
 
 /***/ }),
-/* 14 */
+/* 12 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var YAMLException = __webpack_require__(7);
+var YAMLException = __webpack_require__(5);
 
 var TYPE_CONSTRUCTOR_OPTIONS = [
   'kind',
@@ -2575,16 +2499,44 @@ module.exports = Type;
 
 
 /***/ }),
+/* 13 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+
+
+var Type = __webpack_require__(12);
+
+module.exports = new Type('tag:yaml.org,2002:str', {
+  kind: 'scalar',
+  construct: function (data) { return data !== null ? data : ''; }
+});
+
+
+/***/ }),
+/* 14 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+
+
+var Type = __webpack_require__(12);
+
+module.exports = new Type('tag:yaml.org,2002:seq', {
+  kind: 'sequence',
+  construct: function (data) { return data !== null ? data : []; }
+});
+
+
+/***/ }),
 /* 15 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
-module.exports = new Type('tag:yaml.org,2002:str', {
-  kind: 'scalar',
-  construct: function (data) { return data !== null ? data : ''; }
+module.exports = new Type('tag:yaml.org,2002:map', {
+  kind: 'mapping',
+  construct: function (data) { return data !== null ? data : {}; }
 });
 
 
@@ -2594,35 +2546,7 @@ module.exports = new Type('tag:yaml.org,2002:str', {
 
 
 
-var Type = __webpack_require__(14);
-
-module.exports = new Type('tag:yaml.org,2002:seq', {
-  kind: 'sequence',
-  construct: function (data) { return data !== null ? data : []; }
-});
-
-
-/***/ }),
-/* 17 */
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-
-
-var Type = __webpack_require__(14);
-
-module.exports = new Type('tag:yaml.org,2002:map', {
-  kind: 'mapping',
-  construct: function (data) { return data !== null ? data : {}; }
-});
-
-
-/***/ }),
-/* 18 */
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-
-
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 function resolveYamlNull(data) {
   if (data === null) return true;
@@ -2658,12 +2582,12 @@ module.exports = new Type('tag:yaml.org,2002:null', {
 
 
 /***/ }),
-/* 19 */
+/* 17 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 function resolveYamlBoolean(data) {
   if (data === null) return false;
@@ -2699,13 +2623,13 @@ module.exports = new Type('tag:yaml.org,2002:bool', {
 
 
 /***/ }),
-/* 20 */
+/* 18 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var common = __webpack_require__(6);
-var Type   = __webpack_require__(14);
+var common = __webpack_require__(4);
+var Type   = __webpack_require__(12);
 
 function isHexCode(c) {
   return ((0x30/* 0 */ <= c) && (c <= 0x39/* 9 */)) ||
@@ -2861,13 +2785,13 @@ module.exports = new Type('tag:yaml.org,2002:int', {
 
 
 /***/ }),
-/* 21 */
+/* 19 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var common = __webpack_require__(6);
-var Type   = __webpack_require__(14);
+var common = __webpack_require__(4);
+var Type   = __webpack_require__(12);
 
 var YAML_FLOAT_PATTERN = new RegExp(
   // 2.5e4, 2.5 and integers
@@ -2964,12 +2888,12 @@ module.exports = new Type('tag:yaml.org,2002:float', {
 
 
 /***/ }),
-/* 22 */
+/* 20 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 var YAML_DATE_REGEXP = new RegExp(
   '^([0-9][0-9][0-9][0-9])'          + // [1] year
@@ -3058,12 +2982,12 @@ module.exports = new Type('tag:yaml.org,2002:timestamp', {
 
 
 /***/ }),
-/* 23 */
+/* 21 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 function resolveYamlMerge(data) {
   return data === '<<' || data === null;
@@ -3076,7 +3000,7 @@ module.exports = new Type('tag:yaml.org,2002:merge', {
 
 
 /***/ }),
-/* 24 */
+/* 22 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
@@ -3084,7 +3008,7 @@ module.exports = new Type('tag:yaml.org,2002:merge', {
 /*eslint-disable no-bitwise*/
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 
 // [ 64, 65, 66 ] -> [ padding, CR, LF ]
@@ -3207,12 +3131,12 @@ module.exports = new Type('tag:yaml.org,2002:binary', {
 
 
 /***/ }),
-/* 25 */
+/* 23 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
 var _toString       = Object.prototype.toString;
@@ -3257,12 +3181,12 @@ module.exports = new Type('tag:yaml.org,2002:omap', {
 
 
 /***/ }),
-/* 26 */
+/* 24 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 var _toString = Object.prototype.toString;
 
@@ -3316,12 +3240,12 @@ module.exports = new Type('tag:yaml.org,2002:pairs', {
 
 
 /***/ }),
-/* 27 */
+/* 25 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
-var Type = __webpack_require__(14);
+var Type = __webpack_require__(12);
 
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -3351,16 +3275,16 @@ module.exports = new Type('tag:yaml.org,2002:set', {
 
 
 /***/ }),
-/* 28 */
+/* 26 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 
 
 /*eslint-disable no-use-before-define*/
 
-var common              = __webpack_require__(6);
-var YAMLException       = __webpack_require__(7);
-var DEFAULT_SCHEMA      = __webpack_require__(9);
+var common              = __webpack_require__(4);
+var YAMLException       = __webpack_require__(5);
+var DEFAULT_SCHEMA      = __webpack_require__(7);
 
 var _toString       = Object.prototype.toString;
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -4322,10 +4246,109 @@ module.exports.dump = dump;
 
 
 /***/ }),
-/* 29 */
+/* 27 */
 /***/ ((module) => {
 
 module.exports = require("path");
+
+/***/ }),
+/* 28 */
+/***/ ((module) => {
+
+module.exports = require("vscode");
+
+/***/ }),
+/* 29 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FolderProjectTreeProvider = exports.Folder = void 0;
+const vscode = __importStar(__webpack_require__(28));
+const path = __importStar(__webpack_require__(27));
+class Folder extends vscode.TreeItem {
+    label;
+    description;
+    collapsibleState;
+    light_ico;
+    dark_ico;
+    command;
+    children = [];
+    parent = null;
+    constructor(label, description, collapsibleState, light_ico, dark_ico, command) {
+        super(label, collapsibleState);
+        this.label = label;
+        this.description = description;
+        this.collapsibleState = collapsibleState;
+        this.light_ico = light_ico;
+        this.dark_ico = dark_ico;
+        this.command = command;
+        this.tooltip = description;
+        this.iconPath = {
+            light: path.join(__filename, light_ico),
+            dark: path.join(__filename, dark_ico)
+        };
+    }
+    contextValue = 'Folder';
+}
+exports.Folder = Folder;
+class FolderProjectTreeProvider {
+    _onDidChangeTreeData = new vscode.EventEmitter();
+    onDidChangeTreeData = this._onDidChangeTreeData.event;
+    items = [];
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+    getTreeItem(element) {
+        return element;
+    }
+    getChildren(element) {
+        if (element) {
+            return Promise.resolve(element.children);
+        }
+        else {
+            return Promise.resolve(this.items);
+        }
+    }
+    getParent(element) {
+        return element.parent;
+    }
+    addItem(item, parent) {
+        if (parent) {
+            item.parent = parent;
+            parent.children.push(item);
+        }
+        else {
+            this.items.push(item);
+        }
+        this.refresh();
+    }
+}
+exports.FolderProjectTreeProvider = FolderProjectTreeProvider;
+
 
 /***/ })
 /******/ 	]);

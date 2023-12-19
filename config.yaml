@@ -1,36 +1,68 @@
-- type: ProjectAlpha
+- name: Project
+  description: 'This is a project'
+  light_ico: '../../media/project_explorer/light/project.svg'
+  dark_ico: '../../media/project_explorer/dark/project.svg'
+  children: ['UMLPackage']
   properties:
-    version: 1.0
-    primaryColor: red
-    secondaryColor: blue
-    users: ['Alice', 'Bob', 'Charlie']
-    isActive: true
-    searchFields: 
-      - name: 'searchUsers'
-        value: ''
-      - name: 'searchColors'
-        value: ''
-- type: ProjectBeta
+    version:
+      type: 'input'
+      value: ''
+
+- name: UMLPackage
+  description: 'This is a package'
+  light_ico: '../../media/project_explorer/light/package.svg'
+  dark_ico: '../../media/project_explorer/dark/package.svg'
+  children: ['UMLClass']
   properties:
-    version: 2.0
-    primaryColor: green
-    secondaryColor: yellow
-    users: ['David', 'Eve', 'Frank']
-    isActive: false
-    searchFields: 
-      - name: 'searchUsers'
-        value: ''
-- type: ProjectGamma
+    version:
+      type: 'input'
+      value: ''
+      
+- name: UMLClass
+  description: 'This is a class'
+  light_ico: '../../media/project_explorer/light/class.svg'
+  dark_ico: '../../media/project_explorer/dark/class.svg'
+  children: ['UMLOperation']
   properties:
-    version: 3.0
-    primaryColor: purple
-    secondaryColor: orange
-    users: ['Grace', 'Heidi', 'Ivan']
-    isActive: true
-    searchFields: 
-      - name: 'searchUsers'
-        value: ''
-      - name: 'searchColors'
-        value: ''
-      - name: 'searchVersion'
-        value: ''
+    version:
+      type: 'input'
+      value: ''
+    primaryColor:
+      type: 'input'
+      value: ''
+    secondaryColor:
+      type: 'input'
+      value: ''
+    users:
+      type: 'dropdown'
+      value: []
+    isActive:
+      type: 'checkbox'
+      value: false
+    searchUsers: 
+      type: 'nav'
+      value: ''
+      
+- name: UMLOperation
+  description: 'This is an operation'
+  light_ico: '../../media/project_explorer/light/operation.svg'
+  dark_ico: '../../media/project_explorer/dark/operation.svg'
+  properties:
+    version:
+      type: 'input'
+      value: ''
+    primaryColor:
+      type: 'input'
+      value: ''
+    secondaryColor:
+      type: 'input'
+      value: ''
+    users:
+      type: 'dropdown'
+      value: []
+    isActive:
+      type: 'checkbox'
+      value: false
+    searchUsers: 
+      type: 'nav'
+      value: ''
